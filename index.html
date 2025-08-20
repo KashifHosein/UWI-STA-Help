@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UWI Help — Study & Tutor Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #0b0b0d;     /* default dark */
+        --text: #f2f2f3;
+        --card: #141417;
+        --muted: #9aa0a6;
+        --accent: #1e88ff;  /* blue */
+        --accent-600: #166ad6;
+        --danger: #ef4444;  /* red */
+        --danger-700: #c83333;
+        --ok: #16a34a;      /* green */
+        --border: #2a2a30;
+      }
+      [data-theme="light"] {
+        --bg: #ffffff;
+        --text: #111827;
+        --card: #f4f5f7;
+        --muted: #4b5563;
+        --accent: #1e88ff;
+        --accent-600: #166ad6;
+        --danger: #ef4444;
+        --danger-700: #c83333;
+        --ok: #16a34a;
+        --border: #e5e7eb;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        background: var(--bg);
+        color: var(--text);
+      }
+      /* Top Nav */
+      .nav { position: sticky; top: 0; z-index: 50; background: #000; color: #fff; border-bottom: 1px solid #111; }
+      .nav-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; gap: 16px; padding: 12px 16px; }
+      .brand { font-weight: 700; letter-spacing: .3px; }
+      .tabs { display: flex; gap: 10px; margin-left: 20px; }
+      .tab { padding: 8px 12px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; }
+      .tab.active { background: #111; border-color: #222; }
+      .spacer { flex: 1; }
+      .btn { border: 1px solid var(--border); background: var(--card); color: var(--text); padding: 8px 12px; border-radius: 10px; cursor: pointer; }
+      .btn:hover { filter: brightness(1.06); }
+      .btn.primary { background: var(--accent); border-color: var(--accent-600); color: #fff; }
+      .btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+      .btn.danger:hover { background: var(--danger); color: #fff; }
+      .btn.link { background: transparent; border: 1px dashed var(--border); }
+      .container { max-width: 1100px; margin: 18px auto; padding: 0 16px 64px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+      .row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+      .col-4 { grid-column: span 4; } .col-6 { grid-column: span 6; } .col-8 { grid-column: span 8; } .col-12 { grid-column: span 12; }
+      label { display:block; font-weight:600; margin-bottom: 6px; }
+      input, select, textarea { width: 100%; padding: 10px 12px; background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 10px; }
+      input::placeholder, textarea::placeholder { color: var(--muted); }
+      .muted { color: var(--muted); }
+      .chip { display:inline-flex; align-items:center; gap:6px; background: #0d2b4d; color:#cfe5ff; padding:4px 8px; border-radius:9999px; border:1px solid #164d89; font-size: 12px; }
+      .chip.red { background:#3d0b0b; color:#ffd1d1; border-color:#8a1616; }
+      .chip.gray { background:#2a2a30; color:#d9dadf; border-color:#3a3a41; }
+      .forum-header { display:flex; flex-wrap: wrap; gap:12px; align-items:center; justify-content: space-between; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px; }
+      .forum-title { font-weight: 700; }
+      .counts { display:flex; gap:10px; align-items:center; }
+      .enroll-btn { padding:8px 14px; border-radius: 9999px; border:1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer; }
+      .enroll-btn:hover { background: var(--accent); color: #fff; }
+      .unenroll-btn { padding:8px 14px; border-radius: 9999px; border:1px solid var(--danger); color: var(--danger); background: transparent; cursor: pointer; }
+      .unenroll-btn:hover { background: var(--danger); color:#fff; }
+      .post { border-top:1px dashed var(--border); padding-top:12px; margin-top:12px; }
+      .hidden { display: none !important; }
+      .grid { display:grid; gap:12px; }
+      .two { grid-template-columns: 1fr 1fr; }
+      .profile-pop { position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,.5); }
+      .profile-inner { width: 520px; max-width: 95vw; }
+      a.inline-link { color: var(--accent); text-decoration: none; }
+      a.inline-link:hover { text-decoration: underline; }
+      .stepper { display:flex; gap:6px; align-items:center; margin-bottom:12px; }
+      .dot { width:10px; height:10px; border-radius:9999px; background:#333; border:1px solid var(--border); }
+      .dot.active { background: var(--accent); border-color: var(--accent-600); }
+      .segment { height:2px; width:32px; background:#333; border-radius:2px; }
+      .segment.active { background: var(--accent); }
+      #authDialog, #authDialog * {
+        color: #ef4444 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="nav-inner">
+        <span class="brand">UWI STA Help</span>
+        <div class="tabs">
+          <div class="tab active" data-goto="home">Home</div>
+          <div class="tab" data-goto="explore">Explore Courses</div>
+          <div class="tab" data-goto="events">Discover Events</div>
+        </div>
+        <div class="spacer"></div>
+        <button id="themeToggle" class="btn" style="margin-right:12px;">🌓</button>
+        <div id="authStatus" style="margin-left:8px; display:flex; align-items:center; gap:8px;">
+          <!-- Auth status and buttons will be rendered here by JS -->
+        </div>
+      </div>
+    </nav>
+
+    <main class="container">
+      <!-- HOME -->
+      <section id="page-home">
+        <div class="row">
+          <div class="col-8">
+            <div class="card">
+              <h2>Welcome 👋</h2>
+              <p>Your homepage shows shortcuts to enrolled course forums and bookmarked events.</p>
+              <div id="homeCallout" class="muted" style="margin-top:6px">New here? Head to <span class="chip">Explore Courses</span> to enroll.</div>
+            </div>
+            <div class="card" style="margin-top:16px">
+              <h3>Your Enrolled Courses</h3>
+              <div id="enrolledList" class="grid two"></div>
+            </div>
+            <div class="card" style="margin-top:16px">
+              <h3>Bookmarked Events</h3>
+              <div id="bookmarkedEvents" class="grid"></div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="card">
+              <h3>Your Profile</h3>
+              <div id="profileBox" class="muted">Sign in to see your profile.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXPLORE COURSES (step-by-step) -->
+      <section id="page-explore" class="hidden">
+        <div class="card">
+          <div class="stepper">
+            <div class="dot" id="dot1"></div><div class="segment" id="seg1"></div>
+            <div class="dot" id="dot2"></div><div class="segment" id="seg2"></div>
+            <div class="dot" id="dot3"></div><div class="segment" id="seg3"></div>
+            <div class="dot" id="dot4"></div>
+          </div>
+          <div id="step-1">
+            <h2>Step 1 — Choose a Faculty</h2>
+            <div id="facultyList" class="grid two" style="margin-top:12px"></div>
+          </div>
+          <div id="step-2" class="hidden">
+            <h2>Step 2 — Choose a Department</h2>
+            <div class="muted" id="pickedFaculty"></div>
+            <div id="deptList" class="grid two" style="margin-top:12px"></div>
+            <div style="display:flex; gap:8px; margin-top:12px">
+              <button class="btn" id="backTo1">← Back</button>
+            </div>
+          </div>
+          <div id="step-3" class="hidden">
+            <h2>Step 3 — Pick a Course</h2>
+            <div class="muted" id="pickedDept"></div>
+            <div id="courseList" class="grid two" style="margin-top:12px"></div>
+            <div style="display:flex; gap:8px; margin-top:12px">
+              <button class="btn" id="backTo2">← Back</button>
+            </div>
+          </div>
+          <div id="step-4" class="hidden">
+            <h2 id="courseTitle">Course Forum</h2>
+            <div class="forum-header" style="margin-top:8px">
+              <div class="forum-title" id="forumTitle">—</div>
+              <div class="counts">
+                <span class="chip"><strong id="membersTotal">0</strong>&nbsp;Total</span>
+                <span class="chip"><strong id="membersOnline">0</strong>&nbsp;Online</span>
+              </div>
+              <div>
+                <button id="enrollBtn" class="enroll-btn">Enroll</button>
+                <button id="unenrollBtn" class="unenroll-btn hidden">Unenroll</button>
+              </div>
+            </div>
+            <div id="forumPosts" style="margin-top:12px"></div>
+            <div id="postComposer" class="card" style="margin-top:12px">
+              <h4>Ask or share</h4>
+              <textarea id="postText" rows="3" placeholder="Ask a question, share a tip, or post resources…"></textarea>
+              <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end">
+                <button id="postBtn" class="btn primary">Post</button>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px">
+              <button class="btn" id="backTo3">← Back</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EVENTS -->
+      <section id="page-events" class="hidden">
+        <div class="row">
+          <div class="col-8">
+            <div class="card">
+              <div style="display:flex; gap:8px; align-items:end">
+                <div style="flex:1">
+                  <label for="eventSearch">Search events</label>
+                  <input id="eventSearch" placeholder="Search by title or course code (e.g., COMP1601)" />
+                </div>
+              </div>
+            </div>
+            <div class="card" style="margin-top:16px">
+              <h3>Upcoming & Recent</h3>
+              <div id="eventsList" class="grid"></div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="card">
+              <h3>Tips</h3>
+              <ul>
+                <li>Events show newest first. Click one to see details and attendees.</li>
+                <li>Use reactions to indicate attendance.</li>
+                <li>Bookmark events to pin to your Home.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Simple auth modal (email/password) -->
+    <dialog id="authDialog" style="border:none;border-radius:16px;padding:0;">
+      <form id="authForm" method="dialog" class="card" style="min-width: 360px;">
+        <h3 id="authTitle">Sign Up</h3>
+        <div id="authError" style="color:#ef4444; margin-bottom:8px; min-height:20px;"></div>
+        
+        <label for="authEmail">Email</label>
+        <input id="authEmail" type="email" required placeholder="student@my.uwi.edu" autocomplete="username" />
+        
+        <label for="authPass" style="margin-top:8px">Password</label>
+        <input id="authPass" type="password" required placeholder="••••••••" autocomplete="current-password" />
+        
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+          <button class="btn" type="button" value="cancel" onclick="authDialog.close('cancel')">Cancel</button>
+          <button id="authSubmit" class="btn primary" value="confirm">Submit</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Profile modal -->
+    <div id="profilePop" class="profile-pop">
+      <div class="profile-inner card">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <h3 style="margin:0">User Profile</h3>
+          <button id="profileClose" class="btn">✕</button>
+        </div>
+        <div id="profileContent" style="margin-top:8px" class="muted">—</div>
+      </div>
+    </div>
+
+    <!-- Firebase-driven logic -->
+    <script type="module" src="./firebase_config.js"></script>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
