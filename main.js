@@ -42,10 +42,93 @@ $('#themeToggle').addEventListener('click', () => {
 // =========================
 // Routing
 // =========================
-const pages = { home: $('#page-home'), explore: $('#page-explore'), events: $('#page-events') };
-function goto(page){
-  Object.values(pages).forEach(el => el.classList.add('hidden'));
-  pages[page].classList.remove('hidden');
+const pages = { 
+  home: $('#page-home'), 
+  explore: $('#page-explore'), 
+  events: $('#page-events') // Removed forum reference
+};
+
+function goto(page) {
+  Object.values(pages).forEach(el => el && el.classList.add('hidden'));
+
+  // navigate to a course forum automatically by reproducing the Explore flow
+  if (page && page.startsWith('forum:')) {
+    const courseCode = page.split(':')[1];
+
+    // show Explore page first
+    pages.explore?.classList.remove('hidden');
+
+    // Try to locate course in the CATALOG and drive the step UI directly
+    let found = false;
+    for (const fac of Object.keys(CATALOG)) {
+      for (const dept of Object.keys(CATALOG[fac])) {
+        const courses = CATALOG[fac][dept] || [];
+        if (courses.includes(courseCode)) {
+          // set the selection state and drive the existing build functions
+          selFaculty = fac;
+          selDept = dept;
+          selCourse = courseCode;
+
+          // populate step 2 (depts) and show it
+          buildStep2();
+          setStep(2);
+
+          // give the DOM a moment then populate step 3 and show it,
+          // then open the forum (step 4)
+          setTimeout(() => {
+            buildStep3();
+            setStep(3);
+            setTimeout(() => {
+              // openForum is already wired to render the forum for a course
+              openForum(courseCode);
+              setStep(4);
+            }, 40);
+          }, 40);
+
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+
+    if (!found) {
+      // Fallback: try to simulate clicking the course entry in Explore (if DOM uses different structure)
+      const tryNavigateInExplore = () => {
+        const exploreRoot = pages.explore || $('#page-explore');
+        if (!exploreRoot) return false;
+
+        // prefer explicit data attributes if present
+        let el = exploreRoot.querySelector(`[data-course-code="${courseCode}"], [data-code="${courseCode}"], [data-course="${courseCode}"]`);
+
+        // fallback: find element whose text matches the course code
+        if (!el) {
+          const candidates = Array.from(exploreRoot.querySelectorAll('button, a, div, span'));
+          el = candidates.find(e => e.textContent && e.textContent.trim().toUpperCase() === courseCode.toUpperCase());
+        }
+
+        if (!el) return false;
+        const clickable = el.closest('button, a') || el;
+        clickable.click();
+        return true;
+      };
+
+      const ok = tryNavigateInExplore();
+      if (!ok) {
+        setTimeout(() => {
+          const ok2 = tryNavigateInExplore();
+          if (!ok2 && typeof openForum === 'function') openForum(courseCode); // final fallback
+        }, 150);
+      }
+    }
+
+    // show explore tab as active
+    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.goto === 'explore'));
+    return;
+  }
+
+  // standard page navigation
+  pages[page]?.classList.remove('hidden');
   $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.goto === page));
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => goto(t.dataset.goto)));
@@ -221,8 +304,7 @@ function renderHome(uid) {
   });
   list.querySelectorAll('[data-open-forum]').forEach(btn => btn.addEventListener('click', (e) => {
     const code = e.currentTarget.getAttribute('data-open-forum');
-    openForum(code);
-    goto('explore');
+    goto(`forum:${code}`); // Navigate directly to the course forum
   }));
 
   // Bookmarked events
@@ -380,30 +462,38 @@ function fakeCounts(code) {
   return { total, online };
 }
 
-function openForum(code){
-  forumTitle.textContent = code;
+function openForum(code) {
+  // Update forum title
+  $('#courseTitle').textContent = `Course Forum: ${code}`;
+
+  // Fake counts for members
   const { total, online } = fakeCounts(code);
   membersTotal.textContent = total;
   membersOnline.textContent = online;
+
+  // Render enroll/unenroll buttons
   renderEnrollButtons(code);
-  // render posts
+
+  // Render posts specific to the course
   forumPosts.innerHTML = '';
-  const posts = getPosts(code);
+  const posts = getPosts(code); // Fetch posts for the specific course
   if (!posts.length) {
     forumPosts.innerHTML = '<div class="muted">No posts yet. Be the first to ask or share.</div>';
   } else {
     posts.forEach(p => forumPosts.appendChild(renderPost(p)));
   }
-  // composer handler
+
+  // Set up post composer for the specific course
   postBtn.onclick = () => {
     const user = auth.currentUser;
     if (!user) return alert('Please sign in to post.');
-    const txt = postText.value.trim(); if (!txt) return;
+    const txt = postText.value.trim();
+    if (!txt) return;
     const st = getUserState(user.uid);
     const role = (st.roles && st.roles[0]) || 'student';
-    addPost(code, { author: user.displayName || (user.email||'').split('@')[0], role, ts: Date.now(), text: txt });
+    addPost(code, { author: user.displayName || (user.email || '').split('@')[0], role, ts: Date.now(), text: txt });
     postText.value = '';
-    // Refresh list
+    // Refresh posts
     forumPosts.innerHTML = '';
     getPosts(code).forEach(p => forumPosts.appendChild(renderPost(p)));
   };
