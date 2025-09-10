@@ -22,7 +22,7 @@ const auth = getAuth();
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const fmtDT = (d) => new Date(d).toLocaleString();
-const escapeHtml = (str)=> str.replace(/[&<>\"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'}[m]));
+const escapeHtml = (str = '') => String(str).replace(/[&<>\"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'}[m]));
 
 // =========================
 // Theme
@@ -388,6 +388,8 @@ function buildStep2() {
 const pickedDept = $('#pickedDept');
 const courseList = $('#courseList');
 $('#backTo2').addEventListener('click', () => setStep(2));
+// changed code: wire backTo3 so user can go from step-4 back to step-3
+$('#backTo3').addEventListener('click', () => setStep(3));
 
 function buildStep3() {
   pickedDept.textContent = `${selFaculty} • ${selDept}`;
@@ -440,91 +442,211 @@ function addPost(code, p){
   localStorage.setItem(postKey(code), JSON.stringify(arr));
 }
 
-function renderPost(p) {
+// --- helper: current user id/name for post ownership checks ---
+function currentPosterName() {
+  const u = auth.currentUser;
+  if (!u) return null;
+  return u.displayName || (u.email || '').split('@')[0];
+}
+
+// --- render post (now supports attachments + delete for owner) ---
+function renderPost(p, idx, courseCode) {
   const el = document.createElement('div'); el.className='post';
+  // attachments HTML
+  let atHtml = '';
+  if (Array.isArray(p.attachments) && p.attachments.length) {
+    atHtml = `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">` +
+      p.attachments.map((a,ai) => {
+        if (a.type && a.type.startsWith('image')) {
+          // inline thumbnail
+          return `<a href="${a.data}" target="_blank" style="display:inline-block;border-radius:6px;overflow:hidden;border:1px solid #222"><img src="${a.data}" alt="${a.name||''}" style="height:80px;display:block"></a>`;
+        }
+        return '';
+      }).join('') + `</div>`;
+  }
+
+  // delete button only shown when current user is author
+  const ownerName = currentPosterName();
+  const isOwner = ownerName && (ownerName === p.author);
+  const deleteBtnHTML = isOwner ? `<button class="btn danger" data-delete-index="${idx}" style="margin-left:8px">Delete</button>` : '';
+
   el.innerHTML = `
-    <div style="display:flex; justify-content:space-between; gap:12px">
-      <div>
-        <div><strong>${p.author || 'Student'}</strong> <span class="muted">• ${p.role || 'student'}</span></div>
+    <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start">
+      <div style="flex:1">
+        <div><strong>${escapeHtml(p.author || 'Student')}</strong> <span class="muted">• ${escapeHtml(p.role || 'student')}</span></div>
         <div class="muted" style="font-size:12px">${fmtDT(p.ts)}</div>
+        <div style="margin-top:6px; white-space:pre-wrap">${escapeHtml(p.text || '')}</div>
+        ${atHtml}
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end">
+        ${deleteBtnHTML}
       </div>
     </div>
-    <div style="margin-top:6px; white-space:pre-wrap">${escapeHtml(p.text || '')}</div>
   `;
+
+  // wire delete handler (only present when button included)
+  const del = el.querySelector('[data-delete-index]');
+  if (del) {
+    del.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      // confirm
+      if (!confirm('Delete this post? This cannot be undone.')) return;
+      deletePost(courseCode, parseInt(del.getAttribute('data-delete-index'),10));
+    });
+  }
+
   return el;
 }
 
-function hashCode(str) { let h=0; for (let i=0;i<str.length;i++) { h=((h<<5)-h)+str.charCodeAt(i); h|=0; } return Math.abs(h); }
-function fakeCounts(code) {
-  const h = hashCode(code);
-  const total = 150 + (h % 351); // 150–500
-  const online = Math.max(5, Math.min(total - 1, Math.floor((h % 100) * 0.3)));
-  return { total, online };
+// --- deletePost (only author can delete) ---
+function deletePost(code, idx) {
+  const arr = getPosts(code);
+  if (!arr || idx < 0 || idx >= arr.length) return;
+  const p = arr[idx];
+  const ownerName = currentPosterName();
+  if (!ownerName || ownerName !== p.author) {
+    alert('You can only delete your own messages.');
+    return;
+  }
+  arr.splice(idx,1);
+  localStorage.setItem(postKey(code), JSON.stringify(arr));
+  // re-render forum posts if open for this course
+  if ((selCourse || '').toUpperCase() === code.toUpperCase()) {
+    forumPosts.innerHTML = '';
+    getPosts(code).forEach((pp,i) => forumPosts.appendChild(renderPost(pp, i, code)));
+  }
 }
 
+// --- openForum: composer now supports attachments (images) and safe checks ---
 function openForum(code) {
-  // Update forum title
-  $('#courseTitle').textContent = `Course Forum: ${code}`;
+  // Update forum title (safe guard queries)
+  const ct = $('#courseTitle'); if (ct) ct.textContent = `Course Forum: ${code}`;
 
-  // Fake counts for members
   const { total, online } = fakeCounts(code);
-  membersTotal.textContent = total;
-  membersOnline.textContent = online;
+  if (membersTotal) membersTotal.textContent = total;
+  if (membersOnline) membersOnline.textContent = online;
 
   // Render enroll/unenroll buttons
   renderEnrollButtons(code);
 
   // Render posts specific to the course
-  forumPosts.innerHTML = '';
-  const posts = getPosts(code); // Fetch posts for the specific course
-  if (!posts.length) {
-    forumPosts.innerHTML = '<div class="muted">No posts yet. Be the first to ask or share.</div>';
-  } else {
-    posts.forEach(p => forumPosts.appendChild(renderPost(p)));
+  if (forumPosts) forumPosts.innerHTML = '';
+  const posts = getPosts(code) || [];
+  // getPosts returns newest-first; show in order (0 newest)
+  posts.forEach((p,i) => {
+    if (forumPosts) forumPosts.appendChild(renderPost(p, i, code));
+  });
+
+  // Composer and attachments
+  // store attachments on the composer element so file input handler and post handler share the same array
+  const composer = $('#postComposer');
+  if (composer) {
+    // ensure attachments array exists on composer
+    composer._attachments = composer._attachments || [];
+
+    // ensure we have a file input and attach button present (id-prefixed to avoid duplicates)
+    if (!composer._attachInput) {
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.style.display = 'none';
+      composer.appendChild(fileInput);
+      composer._attachInput = fileInput;
+
+      const attachBar = document.createElement('div');
+      attachBar.style.display = 'flex';
+      attachBar.style.justifyContent = 'space-between';
+      attachBar.style.alignItems = 'center';
+      attachBar.style.marginTop = '8px';
+
+      const left = document.createElement('div');
+      const attachBtn = document.createElement('button');
+      attachBtn.className = 'btn';
+      attachBtn.textContent = 'Attach screenshot';
+      attachBtn.addEventListener('click', (ev) => { ev.preventDefault(); fileInput.click(); });
+      left.appendChild(attachBtn);
+
+      const preview = document.createElement('div');
+      preview.style.display = 'flex';
+      preview.style.gap = '8px';
+      preview.style.alignItems = 'center';
+      preview.style.flexWrap = 'wrap';
+      composer._attachPreview = preview;
+
+      attachBar.appendChild(left);
+      attachBar.appendChild(preview);
+      composer.appendChild(attachBar);
+
+      fileInput.addEventListener('change', (ev) => {
+        const f = ev.target.files && ev.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          // push into composer._attachments so post handler sees it
+          composer._attachments.push({ type: f.type || 'image/png', name: f.name, data: reader.result });
+          // show thumbnail
+          const a = document.createElement('a');
+          a.href = reader.result; a.target = '_blank';
+          a.style.display = 'inline-block';
+          a.style.border = '1px solid #222';
+          a.style.borderRadius = '6px';
+          const img = document.createElement('img');
+          img.src = reader.result; img.style.height = '60px'; img.style.display='block';
+          a.appendChild(img);
+          composer._attachPreview.appendChild(a);
+          // reset input
+          fileInput.value = '';
+        };
+        reader.readAsDataURL(f);
+      });
+    }
   }
 
-  // Set up post composer for the specific course
-  postBtn.onclick = () => {
-    const user = auth.currentUser;
-    if (!user) return alert('Please sign in to post.');
-    const txt = postText.value.trim();
-    if (!txt) return;
-    const st = getUserState(user.uid);
-    const role = (st.roles && st.roles[0]) || 'student';
-    addPost(code, { author: user.displayName || (user.email || '').split('@')[0], role, ts: Date.now(), text: txt });
-    postText.value = '';
-    // Refresh posts
-    forumPosts.innerHTML = '';
-    getPosts(code).forEach(p => forumPosts.appendChild(renderPost(p)));
-  };
+  // wire post button (safe)
+  if (postBtn) {
+    postBtn.onclick = () => {
+      const user = auth.currentUser;
+      if (!user) { alert('Please sign in to post.'); return; }
+      const txtEl = postText;
+      const txt = txtEl ? (postText.value || '').trim() : '';
+      const attachments = (composer && composer._attachments) ? composer._attachments.slice() : [];
+      if (!txt && attachments.length === 0) { alert('Enter a message or attach an image.'); return; }
+      const st = getUserState(user.uid);
+      const role = (st.roles && st.roles[0]) || 'student';
+      const author = user.displayName || (user.email || '').split('@')[0];
+      const postObj = { author, role, ts: Date.now(), text: txt, attachments: attachments };
+      try {
+        addPost(code, postObj);
+      } catch (e) {
+        console.error('Failed to save post:', e);
+        alert('Unable to save post (storage might be full).');
+        return;
+      }
+      // clear composer
+      if (txtEl) txtEl.value = '';
+      if (composer && composer._attachPreview) composer._attachPreview.innerHTML = '';
+      if (composer) composer._attachments = [];
+      // Refresh posts (newest-first)
+      if (forumPosts) {
+        forumPosts.innerHTML = '';
+        getPosts(code).forEach((p,i) => forumPosts.appendChild(renderPost(p, i, code)));
+      }
+    };
+  }
 }
 
-function renderEnrollButtons(code){
-  const user = auth.currentUser;
-  const enrolled = user ? (getUserState(user.uid).courses || []).includes(code) : false;
-  $('#enrollBtn').classList.toggle('hidden', enrolled);
-  $('#unenrollBtn').classList.toggle('hidden', !enrolled);
+// Inserted helper to provide simple member counts for a course (used by openForum)
+function fakeCounts(code) {
+  try {
+    const posts = getPosts(code) || [];
+    // total = number of posts, online = small computed value for demo
+    const total = posts.length;
+    const online = Math.min(8, Math.max(0, Math.floor(total / 2)));
+    return { total, online };
+  } catch (e) {
+    return { total: 0, online: 0 };
+  }
 }
-
-enrollBtn.addEventListener('click', () => {
-  const user = auth.currentUser; if (!user) return alert('Sign in to enroll.');
-  const st = getUserState(user.uid);
-  if (!st.courses.includes(forumTitle.textContent)) st.courses.push(forumTitle.textContent);
-  setUserState(user.uid, st);
-  renderEnrollButtons(forumTitle.textContent);
-  renderHome(user.uid);
-});
-unenrollBtn.addEventListener('click', () => {
-  const user = auth.currentUser; if (!user) return;
-  const st = getUserState(user.uid);
-  st.courses = (st.courses || []).filter(c => c !== forumTitle.textContent);
-  setUserState(user.uid, st);
-  renderEnrollButtons(forumTitle.textContent);
-  renderHome(user.uid);
-});
-
-// Back buttons
-$('#backTo3').addEventListener('click', () => setStep(3));
 
 // =========================
 // Events (static + per-user local RSVP/bookmark)
@@ -624,3 +746,43 @@ goto('home');
 /*console.log('btnSignUp:', document.getElementById('btnSignUp'));
 console.log('btnSignIn:', document.getElementById('btnSignIn'));
 console.log('btnSignOut:', document.getElementById('btnSignOut'));*/
+
+// Ensure enroll/unenroll controls work and update local user state.
+// Safe: guards against missing DOM nodes and missing auth.
+function renderEnrollButtons(code) {
+  // nodes may be missing depending on your HTML — guard them
+  if (!enrollBtn || !unenrollBtn) return;
+
+  const user = auth.currentUser;
+  const isEnrolled = user && (getUserState(user.uid).courses || []).includes(code);
+
+  // show/hide appropriately
+  enrollBtn.classList.toggle('hidden', isEnrolled);
+  unenrollBtn.classList.toggle('hidden', !isEnrolled);
+
+  // wire handlers (rebind each time to ensure correct course code)
+  enrollBtn.onclick = (ev) => {
+    ev && ev.preventDefault && ev.preventDefault();
+    if (!auth.currentUser) { alert('Sign in to enroll.'); return; }
+    const st = getUserState(auth.currentUser.uid);
+    st.courses = st.courses || [];
+    if (!st.courses.includes(code)) st.courses.push(code);
+    setUserState(auth.currentUser.uid, st);
+    // refresh UI
+    renderProfileBox(auth.currentUser.uid);
+    renderHome(auth.currentUser.uid);
+    // update button states
+    renderEnrollButtons(code);
+  };
+
+  unenrollBtn.onclick = (ev) => {
+    ev && ev.preventDefault && ev.preventDefault();
+    if (!auth.currentUser) { alert('Sign in to unenroll.'); return; }
+    const st = getUserState(auth.currentUser.uid);
+    st.courses = (st.courses || []).filter(c => c !== code);
+    setUserState(auth.currentUser.uid, st);
+    renderProfileBox(auth.currentUser.uid);
+    renderHome(auth.currentUser.uid);
+    renderEnrollButtons(code);
+  };
+}
